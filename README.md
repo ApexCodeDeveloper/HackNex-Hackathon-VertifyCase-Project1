@@ -28,40 +28,6 @@ Backend config lives in `backend/.env` (see `backend/.env.example`):
 | `GEMINI_MODEL`   | Gemini model used for grounded reasoning       | `gemini-flash-lite-latest`  |
 | `TOP_K`          | Retrieval depth per query                      | `10`                        |
 | `CORS_ORIGINS`   | Allowed origins (JSON array)                   | Vite on `localhost:5173`    |
-| `SUPABASE_URL`   | Supabase project URL — **set both** to use hosted Postgres | *(empty → local SQLite)* |
-| `SUPABASE_ANON_KEY` | Supabase anon API key                       | *(empty → local SQLite)*    |
-
-### Database backends (SQLite ↔ Supabase)
-
-The backend picks its database automatically from `backend/.env`:
-
-- **Both `SUPABASE_*` vars empty** → local **SQLite** (`database/legal_assistant.db`) — the default.
-- **Both set** → **Supabase** (hosted PostgreSQL) via `supabase-py`. Same API, no other code changes.
-
-To switch to Supabase:
-
-1. Create a free project at <https://supabase.com>.
-2. Open **SQL Editor → New query**, paste the whole of `backend/supabase_schema.sql`, press **Run**
-   (creates `documents`, `conversations`, `messages` + indexes + RLS policies; idempotent).
-3. **Settings → API** → copy the *Project URL* and *anon public* key into `backend/.env`:
-
-   ```ini
-   SUPABASE_URL=https://<project-ref>.supabase.co
-   SUPABASE_ANON_KEY=<anon key>
-   ```
-
-4. *(Optional, keeps your existing rows)* migrate local SQLite data:
-
-   ```powershell
-   cd d:\HackNex\backend
-   python migrate_sqlite_to_supabase.py
-   ```
-
-5. Restart the backend — `/api/health` now reports `"db_backend": "supabase"`.
-
-> **Unchanged by the swap:** vector embeddings stay in Chroma (`data/chroma/`), uploaded PDFs stay in
-> `data/documents/`, and Gemini reasoning is unaffected. For a full cloud deploy, point `CHROMA_PATH`
-> at a persistent disk or migrate Chroma to a hosted store (e.g. Chroma Cloud / pgvector).
 
 Health check: <http://127.0.0.1:8000/api/health>
 
