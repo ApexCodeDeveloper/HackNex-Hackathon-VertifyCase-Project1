@@ -1,0 +1,23 @@
+# Secrets & local config
+backend/.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Runtime data (uploaded PDFs, Chroma index, SQLite DB)
+data/
+database/*.db
+
+# Node / frontend
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+
+# Editors / OS
+.vscode/
+.DS_Store
+Thumbs.db
