@@ -3,15 +3,20 @@ import type {
   ChatResponse,
   ContradictionsResponse,
   ConversationResponse,
+  ConversationListItem,
   DocumentMetadata,
   EvidenceChunk,
   HealthResponse,
   StatsResponse,
 } from "./types";
 
-// Same-origin calls: Vite dev server proxies /api and /files to FastAPI :8000.
-// For a production build serving the frontend from FastAPI, this stays valid too.
-const BASE = "";
+// API base URL resolution:
+//  - Dev:  VITE_API_BASE is unset → BASE = "" and the Vite dev server proxies
+//          /api and /files to the local FastAPI on :8000 (see vite.config.ts).
+//  - Prod: set VITE_API_BASE (e.g. https://your-api.onrender.com) in Vercel's
+//          Environment Variables so the browser calls the deployed backend.
+//          The backend must list the Vercel origin in CORS_ORIGINS.
+const BASE = (import.meta.env.VITE_API_BASE ?? "").replace(/\/+$/, "");
 
 async function handle<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -65,6 +70,35 @@ export const api = {
 
   getConversation: (id: string): Promise<ConversationResponse> =>
     fetch(`${BASE}/api/conversations/${id}`).then(handle<ConversationResponse>),
+
+  listConversations: (limit = 100): Promise<ConversationListItem[]> =>
+    fetch(`${BASE}/api/conversations?limit=${limit}`).then(
+      handle<ConversationListItem[]>
+    ),
+
+  createConversation: (title?: string): Promise<ConversationListItem> =>
+    fetch(`${BASE}/api/conversations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: title ?? null }),
+    }).then(handle<ConversationListItem>),
+
+  renameConversation: (
+    id: string,
+    title: string
+  ): Promise<ConversationListItem> =>
+    fetch(`${BASE}/api/conversations/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title }),
+    }).then(handle<ConversationListItem>),
+
+  deleteConversation: (
+    id: string
+  ): Promise<{ status: string; conversation_id: string }> =>
+    fetch(`${BASE}/api/conversations/${id}`, { method: "DELETE" }).then(
+      handle<{ status: string; conversation_id: string }>
+    ),
 
   getEvidence: (chunkId: string): Promise<EvidenceChunk> =>
     fetch(`${BASE}/api/evidence/${encodeURIComponent(chunkId)}`).then(

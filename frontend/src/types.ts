@@ -56,6 +56,14 @@ export interface ConversationResponse {
   messages: StoredMessage[];
 }
 
+export interface ConversationListItem {
+  conversation_id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  message_count: number;
+}
+
 export interface ContradictionClaim {
   text?: string;
   source?: string;

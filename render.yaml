@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: vertifycase-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    # Persistent disk keeps the Chroma vector index + uploaded PDFs across restarts.
+    disk:
+      name: vertifycase-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: PORT
+        value: 8000
+      - key: GEMINI_MODEL
+        value: gemini-flash-lite-latest
+      - key: CHROMA_PATH
+        value: /opt/render/project/src/data/chroma
+      - key: STORAGE_PATH
+        value: /opt/render/project/src/data/documents
+      # Set these manually in the Render dashboard (marked sync:false = secret/dashboard):
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      # e.g. ["https://your-app.vercel.app"]  (no trailing slash)
+      - key: CORS_ORIGINS
+        sync: false

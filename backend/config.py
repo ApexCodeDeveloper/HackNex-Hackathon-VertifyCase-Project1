@@ -19,6 +19,11 @@ CHROMA_PATH = os.getenv("CHROMA_PATH", str(ROOT_DIR / "data" / "chroma"))
 DATABASE_PATH = os.getenv("DATABASE_PATH", str(ROOT_DIR / "database" / "legal_assistant.db"))
 STORAGE_PATH = os.getenv("STORAGE_PATH", str(ROOT_DIR / "data" / "documents"))
 
+# Supabase (hosted PostgreSQL) — set both to activate the Supabase backend;
+# leave empty to keep using local SQLite. Tables: supabase_schema.sql
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip()
+SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "").strip()
+
 # Ensure paths exist
 Path(CHROMA_PATH).mkdir(parents=True, exist_ok=True)
 Path(DATABASE_PATH).parent.mkdir(parents=True, exist_ok=True)

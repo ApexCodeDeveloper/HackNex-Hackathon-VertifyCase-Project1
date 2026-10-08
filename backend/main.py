@@ -21,7 +21,11 @@ from models import (
     ContradictionItem,
     CaseReviewRequest,
     CaseReviewResponse,
-    HealthResponse
+    HealthResponse,
+    ConversationResponse,
+    ConversationListItem,
+    ConversationCreateRequest,
+    ConversationUpdateRequest,
 )
 
 database.init_db()
@@ -59,7 +63,8 @@ def health_check():
         backend="FastAPI",
         chroma_ready=chroma_ok,
         gemini_configured=bool(GEMINI_API_KEY and len(GEMINI_API_KEY.strip()) > 5),
-        indexed_documents=stats["documents"]
+        indexed_documents=stats["documents"],
+        db_backend=database.BACKEND.name
     )
 
 @app.get("/api/stats")
@@ -129,6 +134,22 @@ def chat_endpoint(request: ChatRequest):
     user_msg_id = str(uuid.uuid4())
     now_str = datetime.now(timezone.utc).isoformat()
 
+    # Ensure the conversation row exists and derive a title from the first message
+    try:
+        existing = database.get_conversation(conversation_id)
+        if existing is None:
+            auto_title = request.message.strip()[:60] or "New conversation"
+            database.save_conversation(
+                conversation_id=conversation_id,
+                created_at=now_str,
+                title=auto_title,
+                updated_at=now_str,
+            )
+        else:
+            database.update_conversation(conversation_id, updated_at=now_str)
+    except Exception:
+        pass
+
     database.save_message(
         conversation_id=conversation_id,
         message_id=user_msg_id,
@@ -171,6 +192,13 @@ def chat_endpoint(request: ChatRequest):
         metadata=resp_metadata,
         created_at=datetime.now(timezone.utc).isoformat()
     )
+    # Bump updated_at so the conversation sorts to the top of history
+    try:
+        database.update_conversation(
+            conversation_id, updated_at=datetime.now(timezone.utc).isoformat()
+        )
+    except Exception:
+        pass
 
     return ChatResponse(
         conversation_id=conversation_id,
@@ -182,10 +210,82 @@ def chat_endpoint(request: ChatRequest):
         contradictions=contradictions
     )
 
-@app.get("/api/conversations/{conversation_id}")
+@app.get("/api/conversations", response_model=List[ConversationListItem])
+def list_conversations(limit: int = Query(100, ge=1, le=500)):
+    """Return the conversation list for the chat-history panel, newest first."""
+    try:
+        rows = database.list_conversations(limit)
+        return [ConversationListItem(**r) for r in rows]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/conversations", response_model=ConversationListItem)
+def create_conversation(req: Optional[ConversationCreateRequest] = None):
+    """Create a new (empty) conversation for the chat-history panel."""
+    conversation_id = (req.conversation_id if req and req.conversation_id else None) or str(uuid.uuid4())
+    title = (req.title if req and req.title else None) or "New conversation"
+    now_str = datetime.now(timezone.utc).isoformat()
+    try:
+        database.save_conversation(
+            conversation_id=conversation_id,
+            created_at=now_str,
+            title=title,
+            updated_at=now_str,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    return ConversationListItem(
+        conversation_id=conversation_id,
+        title=title,
+        created_at=now_str,
+        updated_at=now_str,
+        message_count=0,
+    )
+
+
+@app.get("/api/conversations/{conversation_id}", response_model=ConversationResponse)
 def get_conversation(conversation_id: str):
-    msgs = database.get_conversation_messages(conversation_id)
-    return {"conversation_id": conversation_id, "messages": msgs}
+    """Return all messages for a conversation."""
+    try:
+        msgs = database.get_conversation_messages(conversation_id)
+        return {"conversation_id": conversation_id, "messages": msgs}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.patch("/api/conversations/{conversation_id}", response_model=ConversationListItem)
+def rename_conversation(conversation_id: str, req: ConversationUpdateRequest):
+    """Rename a conversation in the chat-history panel."""
+    now_str = datetime.now(timezone.utc).isoformat()
+    try:
+        existing = database.get_conversation(conversation_id)
+        if existing is None:
+            raise HTTPException(status_code=404, detail="Conversation not found.")
+        database.update_conversation(conversation_id, title=req.title, updated_at=now_str)
+        updated = database.get_conversation(conversation_id) or {}
+        return ConversationListItem(
+            conversation_id=conversation_id,
+            title=req.title,
+            created_at=updated.get("created_at", now_str),
+            updated_at=now_str,
+            message_count=0,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/conversations/{conversation_id}")
+def delete_conversation(conversation_id: str):
+    """Delete a conversation and all of its messages from the chat history."""
+    try:
+        database.delete_conversation(conversation_id)
+        return {"status": "success", "conversation_id": conversation_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/api/evidence/{chunk_id}")
 def get_evidence_chunk(chunk_id: str):
@@ -273,3 +373,4 @@ def review_case(req: CaseReviewRequest):
         confidence=review_data.get("confidence", "medium"),
         summary=review_data.get("summary", "")
     )
+
