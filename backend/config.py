@@ -35,6 +35,14 @@ try:
 except Exception:
     CORS_ORIGINS = [origin.strip() for origin in raw_cors.split(",") if origin.strip()]
 
+# Regex of extra origins allowed dynamically. Vercel gives every preview deploy a
+# unique host (e.g. ...-abc123.vercel.app), so a fixed allow-list breaks on the next
+# push. This regex matches all *.vercel.app preview + production origins and works
+# together with allow_credentials=True (unlike allow_origins=["*"], which browsers reject).
+CORS_ORIGIN_REGEX = os.getenv(
+    "CORS_ORIGIN_REGEX", r"https://[a-zA-Z0-9-]+\.vercel\.app"
+)
+
 TOP_K = int(os.getenv("TOP_K", "10"))
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "600"))
 CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "100"))

@@ -6,7 +6,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from config import CORS_ORIGINS, STORAGE_PATH, GEMINI_API_KEY
+from config import CORS_ORIGINS, CORS_ORIGIN_REGEX, STORAGE_PATH, GEMINI_API_KEY
 import database
 import documents
 import rag
@@ -38,7 +38,8 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS if CORS_ORIGINS else ["*"],
+    allow_origins=CORS_ORIGINS or ["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origin_regex=CORS_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
