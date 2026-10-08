@@ -74,9 +74,10 @@ export default function OverviewPage({ health, documents, onNavigate, onRefresh 
       {!health?.gemini_configured && (
         <div className="mt-6 rounded-md border border-amber-700/60 bg-amber-950/30 p-4 text-sm text-amber-200">
           <strong className="font-semibold">GEMINI_API_KEY not set.</strong> Chat and analysis will
-          return an honest “AI analysis unavailable” response until you add the key to{" "}
-          <code className="rounded bg-slate-900 px-1 py-0.5 text-xs">backend/.env</code> and restart
-          the backend.
+          return an honest “AI analysis unavailable” response until you set the key. Locally, add it
+          to <code className="rounded bg-slate-900 px-1 py-0.5 text-xs">backend/.env</code> and
+          restart the backend. On Render, add it under{" "}
+          <span className="font-medium">Environment → GEMINI_API_KEY</span> and redeploy.
         </div>
       )}
 
