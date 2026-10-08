@@ -5,6 +5,8 @@ import type {
   ConversationResponse,
   ConversationListItem,
   DocumentMetadata,
+  DraftDocType,
+  DraftResponse,
   EvidenceChunk,
   HealthResponse,
   StatsResponse,
@@ -118,4 +120,15 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ document_ids }),
     }).then(handle<CaseReviewResponse>),
+
+  draft: (body: {
+    document_ids: string[];
+    doc_type: DraftDocType;
+    instructions: string;
+  }): Promise<DraftResponse> =>
+    fetch(`${BASE}/api/draft`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }).then(handle<DraftResponse>),
 };

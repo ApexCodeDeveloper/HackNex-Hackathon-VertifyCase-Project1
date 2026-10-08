@@ -6,15 +6,17 @@ import DocumentsPage from "./DocumentsPage";
 import ResearchPage from "./ResearchPage";
 import CaseReviewPage from "./CaseReviewPage";
 import ContradictionsPage from "./ContradictionsPage";
+import DraftingPage from "./DraftingPage";
 import EvidencePanel from "./EvidencePanel";
 
-type PageKey = "overview" | "documents" | "research" | "case-review" | "contradictions";
+type PageKey = "overview" | "documents" | "research" | "case-review" | "contradictions" | "drafting";
 
 const NAV: { key: PageKey; label: string; hint: string }[] = [
   { key: "overview", label: "Overview", hint: "System status & quick start" },
   { key: "documents", label: "Documents", hint: "Upload & manage PDFs" },
   { key: "research", label: "Research", hint: "Grounded chat with citations" },
   { key: "case-review", label: "Case Review", hint: "Multi-document synthesis" },
+  { key: "drafting", label: "Drafting", hint: "Generate grounded legal documents" },
   { key: "contradictions", label: "Contradictions", hint: "Cross-document conflicts" },
 ];
 
@@ -153,6 +155,9 @@ export default function App() {
         {page === "research" && <ResearchPage onOpenEvidence={openEvidence} documents={documents} />}
         {page === "case-review" && (
           <CaseReviewPage documents={documents} onOpenEvidence={openEvidence} />
+        )}
+        {page === "drafting" && (
+          <DraftingPage documents={documents} onOpenEvidence={openEvidence} />
         )}
         {page === "contradictions" && (
           <ContradictionsPage documents={documents} onOpenEvidence={openEvidence} />

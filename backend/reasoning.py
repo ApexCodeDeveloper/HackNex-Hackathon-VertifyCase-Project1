@@ -229,3 +229,108 @@ OUTPUT JSON:
             "missing_information": [str(e)],
             "confidence": "low"
         }
+
+
+# Document types the drafting assistant knows how to structure.
+DRAFT_DOC_TYPES = {
+    "motion": "a court motion (caption, introduction, statement of facts, legal argument, conclusion, prayer for relief)",
+    "memorandum": "an internal legal memorandum (question presented, brief answer, statement of facts, discussion/analysis, conclusion)",
+    "demand_letter": "a formal demand letter (date, addressee, re line, statement of the matter, demand, deadline, reservation of rights)",
+    "contract_clause": "a precise contract clause (defined terms, operative language, conditions, remedies)",
+    "general": "a well-structured legal document appropriate to the instructions",
+}
+
+DRAFT_SYSTEM_PROMPT = """You are a grounded legal drafting assistant.
+You may ONLY use facts that are directly supported by the supplied evidence chunks.
+Do NOT invent facts, names, dates, amounts, case citations, statutes, parties, or jurisdiction.
+Every factual assertion in the draft MUST be traceable to one or more supplied evidence chunk IDs.
+If the evidence does not support a required element, state the gap explicitly in the draft and list it under missing_information — never fabricate it.
+Add inline citation markers in the draft text using the exact form [chunk_id] after each supported statement.
+
+Output MUST be valid JSON:
+{
+  "draft_text": "The full drafted document as plain text, with [chunk_id] markers after supported statements",
+  "claims": [
+    {"claim": "A supported factual statement used in the draft", "source_ids": ["chunk_id_1"]}
+  ],
+  "confidence": "high" | "medium" | "low",
+  "missing_information": ["Element that could not be drafted because the evidence is silent"],
+  "contradictions": []
+}
+Never reference a chunk ID that was not supplied."""
+
+
+def draft_legal_document(
+    query: str,
+    evidence_chunks: List[Dict[str, Any]],
+    doc_type: str = "general",
+) -> Dict[str, Any]:
+    """Draft a legal document grounded strictly in the supplied evidence.
+
+    Returns a dict shaped like generate_grounded_answer so the existing
+    verification layer can reuse it: {answer, claims, confidence,
+    missing_information, contradictions}. The drafted text is returned under
+    "answer" (rendered as draft_text by the API layer).
+    """
+    shape = DRAFT_DOC_TYPES.get(doc_type, DRAFT_DOC_TYPES["general"])
+
+    if not evidence_chunks:
+        return {
+            "answer": "Insufficient evidence in the provided documents to draft this document.",
+            "claims": [],
+            "confidence": "low",
+            "missing_information": ["No relevant evidence found in the selected documents."],
+            "contradictions": [],
+        }
+
+    client = get_gemini_client()
+    if not client:
+        return {
+            "answer": "AI analysis is temporarily unavailable. GEMINI_API_KEY is not configured.",
+            "claims": [],
+            "confidence": "low",
+            "missing_information": ["Gemini API key is required for AI drafting."],
+            "contradictions": [],
+        }
+
+    evidence_text = ""
+    for chunk in evidence_chunks:
+        evidence_text += (
+            f"\n--- EVIDENCE CHUNK [{chunk['chunk_id']}] ---\n"
+            f"Doc: {chunk['document_name']} (P.{chunk['page_number']})\n{chunk['text']}\n"
+        )
+
+    user_prompt = (
+        f"Draft {shape}.\n\n"
+        f"DRAFTING INSTRUCTIONS FROM USER:\n{query}\n\n"
+        f"EVIDENCE PROVIDED (only these facts may be used):\n{evidence_text}\n\n"
+        f"Respond strictly in the required JSON format."
+    )
+
+    try:
+        response_text = _generate_with_retry(
+            client, user_prompt, system_instruction=DRAFT_SYSTEM_PROMPT
+        )
+        if response_text.startswith("```json"):
+            response_text = response_text[7:]
+        if response_text.startswith("```"):
+            response_text = response_text[3:]
+        if response_text.endswith("```"):
+            response_text = response_text[:-3]
+        data = json.loads(response_text.strip())
+        # Normalize to the grounded-answer shape the verifier expects.
+        return {
+            "answer": data.get("draft_text", ""),
+            "claims": data.get("claims", []),
+            "confidence": data.get("confidence", "medium"),
+            "missing_information": data.get("missing_information", []),
+            "contradictions": data.get("contradictions", []),
+        }
+    except Exception as e:
+        return {
+            "answer": "AI drafting error occurred while generating the document.",
+            "claims": [],
+            "confidence": "low",
+            "missing_information": [str(e)],
+            "contradictions": [],
+        }

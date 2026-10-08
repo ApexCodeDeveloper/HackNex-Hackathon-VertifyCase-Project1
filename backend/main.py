@@ -26,6 +26,8 @@ from models import (
     ConversationListItem,
     ConversationCreateRequest,
     ConversationUpdateRequest,
+    DraftRequest,
+    DraftResponse,
 )
 
 database.init_db()
@@ -286,6 +288,50 @@ def delete_conversation(conversation_id: str):
         return {"status": "success", "conversation_id": conversation_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/draft", response_model=DraftResponse)
+def draft_document(req: DraftRequest):
+    """Draft a grounded legal document (motion, memo, letter, clause, general)
+    using only facts verified against the selected documents' evidence."""
+    if req.instructions.strip() == "":
+        raise HTTPException(
+            status_code=400,
+            detail="Provide drafting instructions describing what to draft.",
+        )
+
+    doc_ids = req.document_ids
+    if not doc_ids:
+        doc_ids = [d["document_id"] for d in database.get_all_documents()]
+    if not doc_ids:
+        raise HTTPException(
+            status_code=400,
+            detail="No documents available to draft from — upload PDFs first.",
+        )
+
+    # Retrieve evidence for the requested documents.
+    chunks = rag.get_chunks_for_documents(doc_ids, limit=30)
+    if not chunks:
+        raise HTTPException(
+            status_code=400,
+            detail="No evidence chunks could be retrieved from the selected documents.",
+        )
+
+    # Generate + verify through the same grounding pipeline as chat/case-review.
+    raw = reasoning.draft_legal_document(req.instructions, chunks, doc_type=req.doc_type)
+    draft_text, claims, sources, confidence, missing, contradictions = (
+        verification.verify_and_clamp_response(ai_response=raw, retrieved_evidence=chunks)
+    )
+
+    return DraftResponse(
+        doc_type=req.doc_type,
+        draft_text=draft_text,
+        claims=claims,
+        sources=sources,
+        confidence=confidence,
+        missing_information=missing,
+        contradictions=contradictions,
+    )
 
 
 @app.get("/api/evidence/{chunk_id}")

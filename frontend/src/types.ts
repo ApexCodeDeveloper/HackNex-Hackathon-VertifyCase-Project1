@@ -94,6 +94,23 @@ export interface CaseReviewResponse {
   summary: string;
 }
 
+export type DraftDocType =
+  | "motion"
+  | "memorandum"
+  | "demand_letter"
+  | "contract_clause"
+  | "general";
+
+export interface DraftResponse {
+  doc_type: DraftDocType;
+  draft_text: string;
+  claims: GroundedClaim[];
+  sources: EvidenceChunk[];
+  confidence: string;
+  missing_information: string[];
+  contradictions: string[];
+}
+
 export interface HealthResponse {
   status: string;
   backend: string;

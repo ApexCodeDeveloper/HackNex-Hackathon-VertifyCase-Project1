@@ -94,3 +94,19 @@ class ConversationCreateRequest(BaseModel):
 
 class ConversationUpdateRequest(BaseModel):
     title: str
+
+# --- Legal drafting ------------------------------------------------------- #
+
+class DraftRequest(BaseModel):
+    document_ids: List[str] = Field(default_factory=list)  # empty = all documents
+    doc_type: str = "general"  # motion | memorandum | demand_letter | contract_clause | general
+    instructions: str = ""     # free-form guidance for the draft
+
+class DraftResponse(BaseModel):
+    doc_type: str
+    draft_text: str
+    claims: List[GroundedClaim]
+    sources: List[EvidenceChunk]
+    confidence: str
+    missing_information: List[str] = Field(default_factory=list)
+    contradictions: List[str] = Field(default_factory=list)
