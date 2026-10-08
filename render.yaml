@@ -18,6 +18,10 @@ services:
         value: 8000
       - key: GEMINI_MODEL
         value: gemini-flash-lite-latest
+      # Allow all Vercel preview + production origins (changes per deploy), so the
+      # browser stops reporting "blocked by CORS policy".
+      - key: CORS_ORIGIN_REGEX
+        value: https://[a-zA-Z0-9-]+\.vercel\.app
       - key: CHROMA_PATH
         value: /opt/render/project/src/data/chroma
       - key: STORAGE_PATH
