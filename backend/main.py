@@ -54,9 +54,10 @@ if os.path.exists(STORAGE_PATH):
 def health_check():
     stats = database.count_all_stats()
     chroma_ok = False
+    chroma_chunks = 0
     try:
         col = rag.get_chroma_collection()
-        col.count()
+        chroma_chunks = int(col.count())
         chroma_ok = True
     except Exception:
         pass
@@ -67,7 +68,8 @@ def health_check():
         chroma_ready=chroma_ok,
         gemini_configured=bool(GEMINI_API_KEY and len(GEMINI_API_KEY.strip()) > 5),
         indexed_documents=stats["documents"],
-        db_backend=database.BACKEND.name
+        db_backend=database.BACKEND.name,
+        chroma_chunks=chroma_chunks,
     )
 
 @app.get("/api/stats")

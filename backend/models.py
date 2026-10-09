@@ -66,6 +66,9 @@ class HealthResponse(BaseModel):
     gemini_configured: bool
     indexed_documents: int
     db_backend: str = "sqlite"
+    # Real number of vectors stored in Chroma (0 means the index is empty —
+    # usually because a Render disk wasn't mounted and vectors were wiped on restart).
+    chroma_chunks: int = 0
 
 # --- Conversation history ------------------------------------------------- #
 
